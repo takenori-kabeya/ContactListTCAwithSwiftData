@@ -11,40 +11,6 @@ import SwiftData
 import SwiftUI
 
 
-struct Contact: Equatable, Identifiable {
-    var id: UUID
-    var name: String
-    var sequenceNo: Int
-}
-
-
-@Model
-final class PersistentContact: Extractable {
-    var id: UUID
-    var name: String
-    var sequenceNo: Int
-    
-    init(id: UUID, name: String, sequenceNo: Int) {
-        self.id = id
-        self.name = name
-        self.sequenceNo = sequenceNo
-    }
-    
-    func extract() -> Contact {
-        return Contact(id: self.id, name: self.name, sequenceNo: self.sequenceNo)
-    }
-    
-    func updateFrom(_ extractedObject: Contact) {
-        self.id = extractedObject.id
-        self.name = extractedObject.name
-        self.sequenceNo = extractedObject.sequenceNo
-    }
-    
-    static func createFrom(_ extractedObject: Contact) -> PersistentContact {
-        return PersistentContact(id: extractedObject.id, name: extractedObject.name, sequenceNo: extractedObject.sequenceNo)
-    }
-}
-
 
 @Reducer
 struct ContactsFeature {
