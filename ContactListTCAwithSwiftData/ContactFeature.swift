@@ -12,7 +12,7 @@ import SwiftUI
 
 
 @Reducer
-struct AddContactFeature {
+struct ContactFeature {
     @ObservableState
     struct State: Equatable {
         var contact: Contact
@@ -59,8 +59,8 @@ struct AddContactFeature {
 
 
 
-struct AddContactView: View {
-    @Bindable var store: StoreOf<AddContactFeature>
+struct ContactView: View {
+    @Bindable var store: StoreOf<ContactFeature>
     @State var name: String = ""
     
     var body: some View {
@@ -95,13 +95,13 @@ struct AddContactView: View {
     @Dependency(\.uuid) var uuid
     
     NavigationStack {
-        AddContactView(
+        ContactView(
             store: Store(
-                initialState: AddContactFeature.State(
+                initialState: ContactFeature.State(
                     contact: Contact(id: uuid(), name: "Jennifer Parker", sequenceNo: 0)
                 )
             ) {
-                AddContactFeature()
+                ContactFeature()
             }
         )
     }

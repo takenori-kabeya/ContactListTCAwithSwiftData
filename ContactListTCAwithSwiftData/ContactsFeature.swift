@@ -50,8 +50,8 @@ final class PersistentContact: Extractable {
 struct ContactsFeature {
     @ObservableState
     struct State: Equatable {
-        @Presents var addContact: AddContactFeature.State?
-        @Presents var editContact: AddContactFeature.State?
+        @Presents var addContact: ContactFeature.State?
+        @Presents var editContact: ContactFeature.State?
         @Presents var alert: AlertState<Action.Alert>?
         var nextSequenceNo: Int = 0
         var contacts: IdentifiedArrayOf<Contact> = []
@@ -62,8 +62,8 @@ struct ContactsFeature {
         case editButtonTapped(id: Contact.ID)
         case deleteButtonTapped(id: Contact.ID)
         
-        case addContact(PresentationAction<AddContactFeature.Action>)
-        case editContact(PresentationAction<AddContactFeature.Action>)
+        case addContact(PresentationAction<ContactFeature.Action>)
+        case editContact(PresentationAction<ContactFeature.Action>)
         case alert(PresentationAction<Alert>)
         case deleteContact(id: Contact.ID)
         
@@ -132,16 +132,16 @@ struct ContactsFeature {
             }
         }
         .ifLet(\.$addContact, action: \.addContact) {
-            AddContactFeature()
+            ContactFeature()
         }
         .ifLet(\.$editContact, action: \.editContact) {
-            AddContactFeature()
+            ContactFeature()
         }
         .ifLet(\.$alert, action: \.alert)
     }
     
     func handleAddButtonTapped(state: inout Self.State) -> Effect<Self.Action> {
-        state.addContact = AddContactFeature.State(contact: Contact(id: self.uuid(), name: "", sequenceNo: state.nextSequenceNo))
+        state.addContact = ContactFeature.State(contact: Contact(id: self.uuid(), name: "", sequenceNo: state.nextSequenceNo))
         return .none
     }
     
@@ -149,7 +149,7 @@ struct ContactsFeature {
         guard let contact = state.contacts.first(where: { $0.id == id }) else {
             return .none
         }
-        state.editContact = AddContactFeature.State(contact: Contact(id: contact.id, name: contact.name, sequenceNo: contact.sequenceNo))
+        state.editContact = ContactFeature.State(contact: Contact(id: contact.id, name: contact.name, sequenceNo: contact.sequenceNo))
         return .none
     }
     
@@ -299,12 +299,12 @@ struct ContactsView: View {
         }
         .sheet(item: $store.scope(state: \.addContact, action: \.addContact)) { addContactStore in
             NavigationStack {
-                AddContactView(store: addContactStore)
+                ContactView(store: addContactStore)
             }
         }
         .sheet(item: $store.scope(state: \.editContact, action: \.editContact)) { editContactStore in
             NavigationStack {
-                AddContactView(store: editContactStore)
+                ContactView(store: editContactStore)
             }
         }
         .alert($store.scope(state: \.alert, action: \.alert))

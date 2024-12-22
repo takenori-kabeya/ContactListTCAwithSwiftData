@@ -32,7 +32,7 @@ struct ContactListTCAwithSwiftDataTests {
         let sequenceNo2 = sequenceNo1 + 1
         
         await store.send(.addButtonTapped) {
-            $0.addContact = AddContactFeature.State(contact: Contact(id: id, name: "", sequenceNo: sequenceNo1))
+            $0.addContact = ContactFeature.State(contact: Contact(id: id, name: "", sequenceNo: sequenceNo1))
         }
         await store.send(\.addContact.setName, name) {
             $0.addContact?.contact.name = name
@@ -142,7 +142,7 @@ struct ContactListTCAwithSwiftDataTests {
         }
         
         await store.send(.editButtonTapped(id: id1)) {
-            $0.editContact = AddContactFeature.State(contact: Contact(id: id1, name: name1, sequenceNo: sequenceNo1))
+            $0.editContact = ContactFeature.State(contact: Contact(id: id1, name: name1, sequenceNo: sequenceNo1))
         }
         await store.send(\.editContact.setName, name3) {
             $0.editContact?.contact.name = name3
