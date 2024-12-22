@@ -11,12 +11,6 @@ import SwiftUI
 import SwiftData
 
 
-struct Contact: Equatable, Identifiable {
-    var id: UUID
-    var name: String
-    var sequenceNo: Int
-}
-
 
 @Model
 final class PersistentContact: Extractable {
@@ -30,17 +24,17 @@ final class PersistentContact: Extractable {
         self.sequenceNo = sequenceNo
     }
     
-    func extract() -> Contact {
-        return Contact(id: self.id, name: self.name, sequenceNo: self.sequenceNo)
+    func extract() -> ContactFeature.State {
+        return ContactFeature.State(id: self.id, name: self.name, sequenceNo: self.sequenceNo)
     }
     
-    func updateFrom(_ extractedObject: Contact) {
+    func updateFrom(_ extractedObject: ContactFeature.State) {
         self.id = extractedObject.id
         self.name = extractedObject.name
         self.sequenceNo = extractedObject.sequenceNo
     }
     
-    static func createFrom(_ extractedObject: Contact) -> PersistentContact {
+    static func createFrom(_ extractedObject: ContactFeature.State) -> PersistentContact {
         return PersistentContact(id: extractedObject.id, name: extractedObject.name, sequenceNo: extractedObject.sequenceNo)
     }
 }
@@ -50,8 +44,10 @@ final class PersistentContact: Extractable {
 @Reducer
 struct ContactFeature {
     @ObservableState
-    struct State: Equatable {
-        var contact: Contact
+    struct State: Equatable, Identifiable {
+        var id: UUID
+        var name: String
+        var sequenceNo: Int
     }
     
     enum Action {
@@ -62,7 +58,7 @@ struct ContactFeature {
         
         @CasePathable
         enum Delegate: Equatable {
-            case saveContact(Contact)
+            case saveContact(ContactFeature.State)
         }
     }
     
@@ -80,13 +76,13 @@ struct ContactFeature {
                 return .none
                 
             case .saveButtonTapped:
-                return .run { [contact = state.contact] send in
+                return .run { [contact = state] send in
                     await send(.delegate(.saveContact(contact)))
                     await self.dismiss()
                 }
                 
             case let .setName(name):
-                state.contact.name = name
+                state.name = name
                 return .none
             }
         }
@@ -106,7 +102,7 @@ struct ContactView: View {
             }
         }
         .onAppear {
-            self.name = self.store.contact.name
+            self.name = self.store.name
         }
         .onChange(of: name) { (oldValue, newValue) in
             let _ = store.send(.setName(newValue))
@@ -134,7 +130,7 @@ struct ContactView: View {
         ContactView(
             store: Store(
                 initialState: ContactFeature.State(
-                    contact: Contact(id: uuid(), name: "Jennifer Parker", sequenceNo: 0)
+                    id: uuid(), name: "Jennifer Parker", sequenceNo: 0
                 )
             ) {
                 ContactFeature()

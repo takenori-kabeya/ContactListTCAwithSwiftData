@@ -32,13 +32,13 @@ struct ContactListTCAwithSwiftDataTests {
         let sequenceNo2 = sequenceNo1 + 1
         
         await store.send(.addButtonTapped) {
-            $0.addContact = ContactFeature.State(contact: Contact(id: id, name: "", sequenceNo: sequenceNo1))
+            $0.addContact = ContactFeature.State(id: id, name: "", sequenceNo: sequenceNo1)
         }
         await store.send(\.addContact.setName, name) {
-            $0.addContact?.contact.name = name
+            $0.addContact?.name = name
         }
         await store.send(\.addContact.saveButtonTapped)
-        await store.receive(\.addContact.delegate.saveContact, Contact(id: id, name: name, sequenceNo: sequenceNo1))
+        await store.receive(\.addContact.delegate.saveContact, ContactFeature.State(id: id, name: name, sequenceNo: sequenceNo1))
         await store.receive(\.addContact.dismiss) {
             $0.addContact = nil
         }
@@ -48,8 +48,8 @@ struct ContactListTCAwithSwiftDataTests {
         let savedContact = try await client.contacts.fetch(predicate: #Predicate { $0.id == id }).first
         #expect(savedContact?.id == id)
         #expect(savedContact?.name == name)
-        await store.receive(\.didAdd, Contact(id: id, name: name, sequenceNo: sequenceNo1)) {
-            $0.contacts = [Contact(id: id, name: name, sequenceNo: sequenceNo1)]
+        await store.receive(\.didAdd, ContactFeature.State(id: id, name: name, sequenceNo: sequenceNo1)) {
+            $0.contacts = [ContactFeature.State(id: id, name: name, sequenceNo: sequenceNo1)]
             $0.nextSequenceNo = sequenceNo2
         }
     }
@@ -82,8 +82,8 @@ struct ContactListTCAwithSwiftDataTests {
         
         await store.send(.onAppear)
         await store.receive(\.didLoad) {
-            let contact1 = Contact(id: id1, name: name1, sequenceNo: sequenceNo1)
-            let contact2 = Contact(id: id2, name: name2, sequenceNo: sequenceNo2)
+            let contact1 = ContactFeature.State(id: id1, name: name1, sequenceNo: sequenceNo1)
+            let contact2 = ContactFeature.State(id: id2, name: name2, sequenceNo: sequenceNo2)
             $0.contacts = [contact1, contact2]
             $0.nextSequenceNo = sequenceNo3
         }
@@ -98,7 +98,7 @@ struct ContactListTCAwithSwiftDataTests {
         let savedIdentifier = try await client.contacts.fetchIdentifier(predicate: #Predicate { $0.id == id2 })
         #expect(savedIdentifier == nil)
         await store.receive(\.didDelete) {
-            let contact1 = Contact(id: id1, name: name1, sequenceNo: sequenceNo1)
+            let contact1 = ContactFeature.State(id: id1, name: name1, sequenceNo: sequenceNo1)
             $0.contacts = [contact1]
             $0.nextSequenceNo = sequenceNo3
         }
@@ -135,20 +135,20 @@ struct ContactListTCAwithSwiftDataTests {
         
         await store.send(.onAppear)
         await store.receive(\.didLoad) {
-            let contact1 = Contact(id: id1, name: name1, sequenceNo: sequenceNo1)
-            let contact2 = Contact(id: id2, name: name2, sequenceNo: sequenceNo2)
+            let contact1 = ContactFeature.State(id: id1, name: name1, sequenceNo: sequenceNo1)
+            let contact2 = ContactFeature.State(id: id2, name: name2, sequenceNo: sequenceNo2)
             $0.contacts = [contact1, contact2]
             $0.nextSequenceNo = sequenceNo3
         }
         
         await store.send(.editButtonTapped(id: id1)) {
-            $0.editContact = ContactFeature.State(contact: Contact(id: id1, name: name1, sequenceNo: sequenceNo1))
+            $0.editContact = ContactFeature.State(id: id1, name: name1, sequenceNo: sequenceNo1)
         }
         await store.send(\.editContact.setName, name3) {
-            $0.editContact?.contact.name = name3
+            $0.editContact?.name = name3
         }
         await store.send(\.editContact.saveButtonTapped)
-        await store.receive(\.editContact.delegate.saveContact, Contact(id: id1, name: name3, sequenceNo: sequenceNo1))
+        await store.receive(\.editContact.delegate.saveContact, ContactFeature.State(id: id1, name: name3, sequenceNo: sequenceNo1))
         await store.receive(\.editContact.dismiss) {
             $0.editContact = nil
         }
@@ -157,9 +157,9 @@ struct ContactListTCAwithSwiftDataTests {
         let savedContact = try await client.contacts.fetch(predicate: #Predicate { $0.id == id1 }).first
         #expect(savedContact?.id == id1)
         #expect(savedContact?.name == name3)
-        await store.receive(\.didEdit, Contact(id: id1, name: name3, sequenceNo: sequenceNo1)) {
-            let contact1 = Contact(id: id1, name: name3, sequenceNo: sequenceNo1)
-            let contact2 = Contact(id: id2, name: name2, sequenceNo: sequenceNo2)
+        await store.receive(\.didEdit, ContactFeature.State(id: id1, name: name3, sequenceNo: sequenceNo1)) {
+            let contact1 = ContactFeature.State(id: id1, name: name3, sequenceNo: sequenceNo1)
+            let contact2 = ContactFeature.State(id: id2, name: name2, sequenceNo: sequenceNo2)
             $0.contacts = [contact1, contact2]
         }
     }
