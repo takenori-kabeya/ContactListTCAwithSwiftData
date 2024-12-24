@@ -150,6 +150,56 @@ actor TableActor<ModelT> where ModelT : PersistentModel, ModelT : Extractable {
     }
     
     @MainActor
+    func upsert(_ descriptor: FetchDescriptor<ModelT>, _ extractedObject: ModelT.ExtractedType, forceSave: Bool = false) throws -> Void {
+//        guard let id = try self.fetchIdentifier(descriptor) else {
+//            return
+//        }
+//        if let modelObject = self.modelContainer.mainContext.model(for: id) as? ModelT {
+        if let modelObject = try self.modelContainer.mainContext.fetch(descriptor).first {
+            modelObject.updateFrom(extractedObject)
+            if forceSave {
+                try self.modelContainer.mainContext.save()
+            }
+        }
+        else {
+            try insert(extractedObject, forceSave: forceSave)
+        }
+    }
+    
+    func upsertInBackground(_ descriptor: FetchDescriptor<ModelT>, _ extractedObject: ModelT.ExtractedType, forceSave: Bool = false) throws -> Void {
+        let context = ModelContext(self.modelContainer)
+//        guard let id = try context.fetchIdentifiers(descriptor).first else {
+//            return
+//        }
+//        if let modelObject = context.model(for: id) as? ModelT {
+        if let modelObject = try context.fetch(descriptor).first {
+            modelObject.updateFrom(extractedObject)
+            if forceSave {
+                try context.save()
+            }
+        }
+        else {
+            let modelObject = ModelT.createFrom(extractedObject)
+            context.insert(modelObject)
+            if forceSave {
+                try context.save()
+            }
+        }
+    }
+    
+    
+    @MainActor
+    func upsert(predicate: Predicate<ModelT>, sortBy: [SortDescriptor<ModelT>] = [], _ extractedObject: ModelT.ExtractedType, forceSave: Bool = false) throws -> Void {
+        let descriptor = FetchDescriptor<ModelT>(predicate: predicate, sortBy: sortBy)
+        try upsert(descriptor, extractedObject, forceSave: forceSave)
+    }
+    
+    func upsertInBackground(predicate: Predicate<ModelT>, sortBy: [SortDescriptor<ModelT>] = [], _ extractedObject: ModelT.ExtractedType, forceSave: Bool = false) throws -> Void {
+        let descriptor = FetchDescriptor<ModelT>(predicate: predicate, sortBy: sortBy)
+        try upsertInBackground(descriptor, extractedObject, forceSave: forceSave)
+    }
+    
+    @MainActor
     func delete(id: PersistentIdentifier, forceSave: Bool = false) throws -> Void {
         let modelObject = self.modelContainer.mainContext.model(for: id)
         self.modelContainer.mainContext.delete(modelObject)
@@ -182,7 +232,8 @@ actor TableActor<ModelT> where ModelT : PersistentModel, ModelT : Extractable {
 
 func createModelContainer(isStoredInMemoryOnly: Bool) -> ModelContainer {
     let schema = Schema([
-        PersistentContact.self
+        PersistentContact.self,
+        PersistentPhoneNumber.self
     ])
     let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: isStoredInMemoryOnly)
 
@@ -190,7 +241,7 @@ func createModelContainer(isStoredInMemoryOnly: Bool) -> ModelContainer {
         return try ModelContainer(for: schema, configurations: [modelConfiguration])
     }
     catch {
-        fatalError("Could not create ModelContainer: \(error)")
+        fatalError("Could not create ModelContainer: \(error.localizedDescription)")
     }
 }
 
@@ -213,11 +264,13 @@ extension DependencyValues {
 
 struct SwiftDataClient {
     var contacts: TableActor<PersistentContact>
+    var phoneNumbers: TableActor<PersistentPhoneNumber>
 }
 
 extension SwiftDataClient: DependencyKey {
     static func createValue(modelContainer: ModelContainer) -> Self {
-        return Self(contacts:TableActor<PersistentContact>(modelContainer: modelContainer))
+        return Self(contacts:TableActor<PersistentContact>(modelContainer: modelContainer),
+                    phoneNumbers: TableActor<PersistentPhoneNumber>(modelContainer: modelContainer))
     }
     
     static let liveValue = createValue(modelContainer: liveModelContainer)

@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		8D7C20572D12B22F00A18C67 /* ComposableArchitecture in Frameworks */ = {isa = PBXBuildFile; productRef = 8D7C20562D12B22F00A18C67 /* ComposableArchitecture */; };
+		8DECCB882D18C4F50058A0AF /* PhoneNumberKit in Frameworks */ = {isa = PBXBuildFile; productRef = 8DECCB872D18C4F50058A0AF /* PhoneNumberKit */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -57,6 +58,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				8D7C20572D12B22F00A18C67 /* ComposableArchitecture in Frameworks */,
+				8DECCB882D18C4F50058A0AF /* PhoneNumberKit in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -118,6 +120,7 @@
 			name = ContactListTCAwithSwiftData;
 			packageProductDependencies = (
 				8D7C20562D12B22F00A18C67 /* ComposableArchitecture */,
+				8DECCB872D18C4F50058A0AF /* PhoneNumberKit */,
 			);
 			productName = ContactListTCAwithSwiftData;
 			productReference = 8D7C20242D12B1E100A18C67 /* ContactListTCAwithSwiftData.app */;
@@ -203,6 +206,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				8D7C20552D12B22F00A18C67 /* XCRemoteSwiftPackageReference "swift-composable-architecture" */,
+				8DECCB862D18C4F50058A0AF /* XCRemoteSwiftPackageReference "PhoneNumberKit" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 8D7C20252D12B1E100A18C67 /* Products */;
@@ -577,6 +581,14 @@
 				minimumVersion = 1.17.0;
 			};
 		};
+		8DECCB862D18C4F50058A0AF /* XCRemoteSwiftPackageReference "PhoneNumberKit" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/marmelroy/PhoneNumberKit";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 4.0.1;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -584,6 +596,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 8D7C20552D12B22F00A18C67 /* XCRemoteSwiftPackageReference "swift-composable-architecture" */;
 			productName = ComposableArchitecture;
+		};
+		8DECCB872D18C4F50058A0AF /* PhoneNumberKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 8DECCB862D18C4F50058A0AF /* XCRemoteSwiftPackageReference "PhoneNumberKit" */;
+			productName = PhoneNumberKit;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
