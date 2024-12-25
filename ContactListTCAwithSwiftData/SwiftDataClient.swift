@@ -33,6 +33,16 @@ actor TableActor<ModelT> where ModelT : PersistentModel, ModelT : Extractable {
         return try context.fetchIdentifiers(descriptor)
     }
     
+//    @MainActor
+//    func fetchModel(_ identifer: PersistentIdentifier) -> ModelT? {
+//        return self.modelContainer.mainContext.model(for: identifer) as? ModelT
+//    }
+//    
+//    func fetchModelInBackground(_ identifer: PersistentIdentifier) -> ModelT? {
+//        let context = ModelContext(self.modelContainer)
+//        return context.model(for: identifer) as? ModelT
+//    }
+    
     @MainActor
     func fetchIdentifiers(predicate: Predicate<ModelT>, sortBy: [SortDescriptor<ModelT>] = []) throws -> [PersistentIdentifier] {
         let descriptor = FetchDescriptor<ModelT>(predicate: predicate, sortBy: sortBy)
@@ -114,6 +124,7 @@ actor TableActor<ModelT> where ModelT : PersistentModel, ModelT : Extractable {
         let modelObject = ModelT.createFrom(extractedObject)
         self.modelContainer.mainContext.insert(modelObject)
         if forceSave {
+            print("SAVE! insert")
             try self.modelContainer.mainContext.save()
         }
     }
@@ -151,10 +162,6 @@ actor TableActor<ModelT> where ModelT : PersistentModel, ModelT : Extractable {
     
     @MainActor
     func upsert(_ descriptor: FetchDescriptor<ModelT>, _ extractedObject: ModelT.ExtractedType, forceSave: Bool = false) throws -> Void {
-//        guard let id = try self.fetchIdentifier(descriptor) else {
-//            return
-//        }
-//        if let modelObject = self.modelContainer.mainContext.model(for: id) as? ModelT {
         if let modelObject = try self.modelContainer.mainContext.fetch(descriptor).first {
             modelObject.updateFrom(extractedObject)
             if forceSave {
@@ -168,10 +175,6 @@ actor TableActor<ModelT> where ModelT : PersistentModel, ModelT : Extractable {
     
     func upsertInBackground(_ descriptor: FetchDescriptor<ModelT>, _ extractedObject: ModelT.ExtractedType, forceSave: Bool = false) throws -> Void {
         let context = ModelContext(self.modelContainer)
-//        guard let id = try context.fetchIdentifiers(descriptor).first else {
-//            return
-//        }
-//        if let modelObject = context.model(for: id) as? ModelT {
         if let modelObject = try context.fetch(descriptor).first {
             modelObject.updateFrom(extractedObject)
             if forceSave {
@@ -225,6 +228,44 @@ actor TableActor<ModelT> where ModelT : PersistentModel, ModelT : Extractable {
     func saveInBackground() throws -> Void {
         let context = ModelContext(self.modelContainer)
         try context.save()
+    }
+}
+
+
+
+
+extension TableActor where ModelT == PersistentContact {
+    @MainActor
+    func updateWithChild(id: PersistentIdentifier, _ extractedObject: ModelT.ExtractedType, forceSave: Bool = false) throws -> Void {
+        guard let modelObject = self.modelContainer.mainContext.model(for: id) as? ModelT else {
+            return
+        }
+        var persistentPhoneNumbers: [PersistentPhoneNumber] = []
+        let existents = try self.modelContainer.mainContext.fetch(FetchDescriptor<PersistentPhoneNumber>())
+        
+        for phoneNumber in extractedObject.phoneNumbers {
+            if let persistentPhoneNumber = existents.first(where: { $0.stateId == phoneNumber.id }) {
+                persistentPhoneNumber.phoneType = phoneNumber.phoneType
+                persistentPhoneNumber.number = phoneNumber.number
+                persistentPhoneNumber.sequenceNo = phoneNumber.sequenceNo
+                
+                persistentPhoneNumbers.append(persistentPhoneNumber)
+            }
+            else {
+                let persistentPhoneNumber = PersistentPhoneNumber(stateId: phoneNumber.id, phoneType: phoneNumber.phoneType, number: phoneNumber.number, sequenceNo: phoneNumber.sequenceNo)
+                self.modelContainer.mainContext.insert(persistentPhoneNumber)
+                
+                persistentPhoneNumbers.append(persistentPhoneNumber)
+            }
+        }
+        try self.modelContainer.mainContext.save()
+        
+        modelObject.stateId = extractedObject.id
+        modelObject.name = extractedObject.name
+        modelObject.sequenceNo = extractedObject.sequenceNo
+        modelObject.phoneNumbers = persistentPhoneNumbers
+        
+        try self.modelContainer.mainContext.save()
     }
 }
 

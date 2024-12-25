@@ -25,13 +25,13 @@ struct ContactsFeature {
     
     enum Action {
         case addButtonTapped
-        case editButtonTapped(contact: ContactFeature.State)
-        case deleteButtonTapped(contact: ContactFeature.State)
+        case editButtonTapped(id: ContactFeature.State.ID)
+        case deleteButtonTapped(id: ContactFeature.State.ID)
         
         case addContact(PresentationAction<ContactFeature.Action>)
         case editContact(PresentationAction<ContactFeature.Action>)
         case alert(PresentationAction<Alert>)
-        case deleteContact(contact: ContactFeature.State)
+        case deleteContact(id: ContactFeature.State.ID)
         
         case didAdd(contact: ContactFeature.State)
         case didEdit(contact: ContactFeature.State)
@@ -41,7 +41,7 @@ struct ContactsFeature {
         case didLoad(loadedContacts: [ContactFeature.State])
         
         enum Alert: Equatable {
-            case confirmDeletion(contact: ContactFeature.State)
+            case confirmDeletion(id: ContactFeature.State.ID)
         }
     }
     
@@ -54,11 +54,11 @@ struct ContactsFeature {
             case .addButtonTapped:
                 return handleAddButtonTapped(state: &state)
                 
-            case .editButtonTapped(contact: let contact):
-                return handleEditButtonTapped(state: &state, contact: contact)
+            case .editButtonTapped(id: let id):
+                return handleEditButtonTapped(state: &state, id: id)
                 
-            case .deleteButtonTapped(contact: let contact):
-                return handleDeleteButtonTapped(state: &state, contact: contact)
+            case .deleteButtonTapped(id: let id):
+                return handleDeleteButtonTapped(state: &state, id: id)
                 
             case .addContact(.presented(.delegate(.saveContact(let contact)))):
                 return handleAddContact(contact: contact)
@@ -68,7 +68,7 @@ struct ContactsFeature {
                 
             case .didAdd(contact: let contact):
                 return handleDidAdd(state: &state, contact: contact)
-            
+                
             case .editContact(.presented(.delegate(.saveContact(let contact)))):
                 return handleEditContact(contact: contact)
                 
@@ -78,14 +78,14 @@ struct ContactsFeature {
             case .didEdit(contact: let contact):
                 return handleDidEdit(state: &state, contact: contact)
             
-            case .deleteContact(contact: let contact):
-                return handleDeleteContact(contact: contact)
+            case .deleteContact(id: let id):
+                return handleDeleteContact(id: id)
                 
             case .didDelete(id: let id):
                 return handleDidDelete(state: &state, id: id)
             
-            case .alert(.presented(.confirmDeletion(contact: let contact))):
-                return handleAlert(state: &state, contact: contact)
+            case .alert(.presented(.confirmDeletion(id: let id))):
+                return handleAlert(state: &state, id: id)
                 
             case .alert:
                 return .none
@@ -111,13 +111,16 @@ struct ContactsFeature {
         return .none
     }
     
-    func handleEditButtonTapped(state: inout Self.State, contact: ContactFeature.State) -> Effect<Self.Action> {
+    func handleEditButtonTapped(state: inout Self.State, id: ContactFeature.State.ID) -> Effect<Self.Action> {
+        guard let contact = state.contacts[id: id] else {
+            return .none
+        }
         state.editContact = ContactFeature.State(id: contact.id, name: contact.name, sequenceNo: contact.sequenceNo, phoneNumbers: contact.phoneNumbers, nextSequenceNoOfPhoneNumbers: contact.nextSequenceNoOfPhoneNumbers)
         return .none
     }
     
-    func handleDeleteButtonTapped(state: inout Self.State, contact: ContactFeature.State) -> Effect<Self.Action> {
-        state.alert = AlertState.deleteConfirmation(contact: contact)
+    func handleDeleteButtonTapped(state: inout Self.State, id: ContactFeature.State.ID) -> Effect<Self.Action> {
+        state.alert = AlertState.deleteConfirmation(id: id)
         return .none
     }
     
@@ -140,7 +143,9 @@ struct ContactsFeature {
     func handleDidAdd(state: inout Self.State, contact: ContactFeature.State) -> Effect<Self.Action> {
         state.contacts.append(contact)
         state.nextSequenceNo = max(state.nextSequenceNo, contact.sequenceNo + 1)
-        return .none
+        return .run { send in
+            await send(.addContact(.dismiss))
+        }
     }
     
     func handleEditContact(contact: ContactFeature.State) -> Effect<Self.Action> {
@@ -153,16 +158,15 @@ struct ContactsFeature {
 //                    }
 //                    catch {
 //                        print("error: \(error.localizedDescription)")
+//                        fatalError("something wrong")
 //                    }
 //                }
-                do {
-                    let id = contact.id
-                    guard let modelIdentifier = try await self.client.contacts.fetchIdentifier(predicate: #Predicate { $0.id == id }) else {
-                        return
-                    }
-                    try await self.client.contacts.update(id: modelIdentifier, contact, forceSave: true)
+                
+                let id = contact.id
+                guard let modelIdentifier = try await self.client.contacts.fetchIdentifier(predicate: #Predicate { $0.stateId == id }) else {
+                    return
                 }
-//                print("handleEditContact.send: \(contact.name)")
+                try await self.client.contacts.updateWithChild(id: modelIdentifier, contact, forceSave: true)
                 await send(.didEdit(contact: contact))
             }
             catch {
@@ -172,16 +176,17 @@ struct ContactsFeature {
     }
     
     func handleDidEdit(state: inout Self.State, contact: ContactFeature.State) -> Effect<Self.Action> {
-        let idx = state.contacts.index(id: contact.id)
-        if idx == nil {
+        guard let idx = state.contacts.index(id: contact.id) else {
             return .none
         }
-        state.contacts[idx!] = contact
+        state.contacts[idx] = contact
         state.nextSequenceNo = max(state.nextSequenceNo, contact.sequenceNo + 1)
-        return .none
+        return .run { send in
+            await send(.editContact(.dismiss))
+        }
     }
     
-    func handleDeleteContact(contact: ContactFeature.State) -> Effect<Self.Action> {
+    func handleDeleteContact(id: ContactFeature.State.ID) -> Effect<Self.Action> {
         return .run { send in
             do {
 //                for phoneNumber in contact.phoneNumbers {
@@ -191,14 +196,12 @@ struct ContactsFeature {
 //                    }
 //                    try await self.client.phoneNumbers.delete(id: modelIdentifier, forceSave: true)
 //                }
-                do {
-                    let contactId = contact.id
-                    guard let modelIdentifier = try await self.client.contacts.fetchIdentifier(predicate: #Predicate { $0.id == contactId }) else {
-                        return
-                    }
-                    try await self.client.contacts.delete(id: modelIdentifier, forceSave: true)
+                guard let modelIdentifier = try await self.client.contacts.fetchIdentifier(predicate: #Predicate { $0.stateId == id }) else {
+                    return
                 }
-                await send(.didDelete(id: contact.id))
+                try await self.client.contacts.delete(id: modelIdentifier, forceSave: true)
+                
+                await send(.didDelete(id: id))
             }
             catch {
                 print("error: \(error.localizedDescription)")
@@ -211,9 +214,9 @@ struct ContactsFeature {
         return .none
     }
     
-    func handleAlert(state: inout Self.State, contact: ContactFeature.State) -> Effect<Self.Action> {
+    func handleAlert(state: inout Self.State, id: ContactFeature.State.ID) -> Effect<Self.Action> {
         return .run { send in
-            await send(.deleteContact(contact: contact))
+            await send(.deleteContact(id: id))
         }
     }
     
@@ -241,11 +244,11 @@ struct ContactsFeature {
 }
 
 extension AlertState where Action == ContactsFeature.Action.Alert {
-    static func deleteConfirmation(contact: ContactFeature.State) -> Self {
+    static func deleteConfirmation(id: ContactFeature.State.ID) -> Self {
         Self(title: {
-            TextState("Are you sure to delete?")
+            TextState("Are you sure?")
         }, actions: {
-            ButtonState(role: .destructive, action: .confirmDeletion(contact: contact)) {
+            ButtonState(role: .destructive, action: .confirmDeletion(id: id)) {
                 TextState("Delete")
             }
         })
@@ -263,14 +266,14 @@ struct ContactsView: View {
                         Text(contact.name)
                         Spacer()
                         Button(action: {
-                            store.send(.editButtonTapped(contact: contact))
+                            store.send(.editButtonTapped(id: contact.id))
                         }, label: {
                             Image(systemName: "pencil")
                                 .foregroundStyle(.blue)
                         })
                         .buttonStyle(.borderless)
                         Button(action: {
-                            store.send(.deleteButtonTapped(contact: contact))
+                            store.send(.deleteButtonTapped(id: contact.id))
                         }, label: {
                             Image(systemName: "trash")
                                 .foregroundStyle(.red)
@@ -311,9 +314,9 @@ struct ContactsView: View {
     do {
         @Dependency(\.uuid) var uuid
         let context = ModelContext(testModelContainer)
-        context.insert(PersistentContact(id: uuid(), name: "Marty McFly", sequenceNo: 0, phoneNumbers: [], nextSequenceNoOfPhoneNumbers: 0))
-        context.insert(PersistentContact(id: uuid(), name: "Emmett \"Doc\" Brown", sequenceNo: 1, phoneNumbers: [], nextSequenceNoOfPhoneNumbers: 0))
-        context.insert(PersistentContact(id: uuid(), name: "Biff Tannen", sequenceNo: 2, phoneNumbers: [], nextSequenceNoOfPhoneNumbers: 0))
+        context.insert(PersistentContact(stateId: uuid(), name: "Marty McFly", sequenceNo: 0, phoneNumbers: [], nextSequenceNoOfPhoneNumbers: 0))
+        context.insert(PersistentContact(stateId: uuid(), name: "Emmett \"Doc\" Brown", sequenceNo: 1, phoneNumbers: [], nextSequenceNoOfPhoneNumbers: 0))
+        context.insert(PersistentContact(stateId: uuid(), name: "Biff Tannen", sequenceNo: 2, phoneNumbers: [], nextSequenceNoOfPhoneNumbers: 0))
         try context.save()
         
         return ContactsView(store: Store(
