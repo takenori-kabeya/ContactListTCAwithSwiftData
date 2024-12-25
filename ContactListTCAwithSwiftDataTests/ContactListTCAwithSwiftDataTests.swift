@@ -45,21 +45,21 @@ struct ContactListTCAwithSwiftDataTests {
         let contact1 = ContactFeature.State(id: id, name: name, sequenceNo: sequenceNo1, phoneNumbers: [], nextSequenceNoOfPhoneNumbers: 0)
         
         await store.receive(\.addContact.delegate.saveContact, contact1)
-        await store.receive(\.addContact.dismiss) {
-            $0.addContact = nil
-        }
         
-        let savedIdentifier = try await client.contacts.fetchIdentifier(predicate: #Predicate { $0.id == id })
+        let savedIdentifier = try await client.contacts.fetchIdentifier(predicate: #Predicate { $0.stateId == id })
         #expect(savedIdentifier != nil)
-        let savedContact = try await client.contacts.fetch(predicate: #Predicate { $0.id == id }).first
+        let savedContact = try await client.contacts.fetch(predicate: #Predicate { $0.stateId == id }).first
         #expect(savedContact?.id == id)
         #expect(savedContact?.name == name)
         await store.receive(\.didAdd, contact1) {
             $0.contacts = [contact1]
             $0.nextSequenceNo = sequenceNo2
         }
+        await store.receive(\.addContact.dismiss) {
+            $0.addContact = nil
+        }
         
-        await store.send(.editButtonTapped(contact: contact1)) {
+        await store.send(.editButtonTapped(id: id)) {
             $0.editContact = contact1
         }
     }
@@ -87,8 +87,8 @@ struct ContactListTCAwithSwiftDataTests {
         try context.delete(model: PersistentContact.self)
         try context.delete(model: PersistentPhoneNumber.self)
         try context.save()
-        context.insert(PersistentContact(id: id1, name: name1, sequenceNo: sequenceNo1, phoneNumbers: [], nextSequenceNoOfPhoneNumbers: 0))
-        context.insert(PersistentContact(id: id2, name: name2, sequenceNo: sequenceNo2, phoneNumbers: [], nextSequenceNoOfPhoneNumbers: 0))
+        context.insert(PersistentContact(stateId: id1, name: name1, sequenceNo: sequenceNo1, phoneNumbers: [], nextSequenceNoOfPhoneNumbers: 0))
+        context.insert(PersistentContact(stateId: id2, name: name2, sequenceNo: sequenceNo2, phoneNumbers: [], nextSequenceNoOfPhoneNumbers: 0))
         try context.save()
         
         await store.send(.onAppear)
@@ -100,14 +100,14 @@ struct ContactListTCAwithSwiftDataTests {
             $0.nextSequenceNo = sequenceNo3
         }
         
-        await store.send(.deleteButtonTapped(contact: contact2)) {
-            $0.alert = AlertState.deleteConfirmation(contact: contact2)
+        await store.send(.deleteButtonTapped(id: id2)) {
+            $0.alert = AlertState.deleteConfirmation(id: id2)
         }
-        await store.send(.alert(.presented(.confirmDeletion(contact: contact2)))) {
+        await store.send(.alert(.presented(.confirmDeletion(id: id2)))) {
             $0.alert = nil
         }
         await store.receive(\.deleteContact)
-        let savedIdentifier = try await client.contacts.fetchIdentifier(predicate: #Predicate { $0.id == id2 })
+        let savedIdentifier = try await client.contacts.fetchIdentifier(predicate: #Predicate { $0.stateId == id2 })
         #expect(savedIdentifier == nil)
         await store.receive(\.didDelete) {
             //let contact1 = ContactFeature.State(id: id1, name: name1, sequenceNo: sequenceNo1, phoneNumbers: [], nextSequenceNoOfPhoneNumbers: 0)
@@ -142,8 +142,8 @@ struct ContactListTCAwithSwiftDataTests {
         try context.delete(model: PersistentContact.self)
         try context.delete(model: PersistentPhoneNumber.self)
         try context.save()
-        context.insert(PersistentContact(id: id1, name: name1, sequenceNo: sequenceNo1, phoneNumbers: [], nextSequenceNoOfPhoneNumbers: 0))
-        context.insert(PersistentContact(id: id2, name: name2, sequenceNo: sequenceNo2, phoneNumbers: [], nextSequenceNoOfPhoneNumbers: 0))
+        context.insert(PersistentContact(stateId: id1, name: name1, sequenceNo: sequenceNo1, phoneNumbers: [], nextSequenceNoOfPhoneNumbers: 0))
+        context.insert(PersistentContact(stateId: id2, name: name2, sequenceNo: sequenceNo2, phoneNumbers: [], nextSequenceNoOfPhoneNumbers: 0))
         try context.save()
         
         await store.send(.onAppear)
@@ -154,7 +154,7 @@ struct ContactListTCAwithSwiftDataTests {
             $0.nextSequenceNo = sequenceNo3
         }
         
-        await store.send(.editButtonTapped(contact: contact1)) {
+        await store.send(.editButtonTapped(id: id1)) {
             $0.editContact = contact1
         }
         await store.send(\.editContact.setName, name3) {
@@ -163,19 +163,19 @@ struct ContactListTCAwithSwiftDataTests {
         let contact3 = ContactFeature.State(id: id1, name: name3, sequenceNo: sequenceNo1, phoneNumbers: [], nextSequenceNoOfPhoneNumbers: 0)
         await store.send(\.editContact.saveButtonTapped)
         await store.receive(\.editContact.delegate.saveContact, contact3)
-        await store.receive(\.editContact.dismiss) {
-            $0.editContact = nil
-        }
-        let savedIdentifier = try await client.contacts.fetchIdentifier(predicate: #Predicate { $0.id == id1 })
+        let savedIdentifier = try await client.contacts.fetchIdentifier(predicate: #Predicate { $0.stateId == id1 })
         #expect(savedIdentifier != nil)
-        let savedContact = try await client.contacts.fetch(predicate: #Predicate { $0.id == id1 }).first
+        let savedContact = try await client.contacts.fetch(predicate: #Predicate { $0.stateId == id1 }).first
         #expect(savedContact?.id == id1)
         #expect(savedContact?.name == name3)
         await store.receive(\.didEdit, contact3) {
             $0.contacts = [contact3, contact2]
         }
+        await store.receive(\.editContact.dismiss) {
+            $0.editContact = nil
+        }
         
-        await store.send(.editButtonTapped(contact: contact3)) {
+        await store.send(.editButtonTapped(id: id1)) {
             $0.editContact = contact3
         }
     }
@@ -202,7 +202,7 @@ struct ContactListTCAwithSwiftDataTests {
         try context.delete(model: PersistentContact.self)
         try context.delete(model: PersistentPhoneNumber.self)
         try context.save()
-        context.insert(PersistentContact(id: id1, name: name1, sequenceNo: sequenceNo1, phoneNumbers: [], nextSequenceNoOfPhoneNumbers: 0))
+        context.insert(PersistentContact(stateId: id1, name: name1, sequenceNo: sequenceNo1, phoneNumbers: [], nextSequenceNoOfPhoneNumbers: 0))
         try context.save()
         
         await store.send(.onAppear)
@@ -212,7 +212,7 @@ struct ContactListTCAwithSwiftDataTests {
             $0.nextSequenceNo = sequenceNo2
         }
         
-        await store.send(.editButtonTapped(contact: contact1)) {
+        await store.send(.editButtonTapped(id: id1)) {
             $0.editContact = contact1
         }
         let id2 = UUID(0)
@@ -238,13 +238,10 @@ struct ContactListTCAwithSwiftDataTests {
         
         await store.send(\.editContact.saveButtonTapped)
         await store.receive(\.editContact.delegate.saveContact, contact4)
-        await store.receive(\.editContact.dismiss) {
-            $0.editContact = nil
-        }
         
-        let savedIdentifier = try await client.contacts.fetchIdentifier(predicate: #Predicate { $0.id == id1 })
+        let savedIdentifier = try await client.contacts.fetchIdentifier(predicate: #Predicate { $0.stateId == id1 })
         #expect(savedIdentifier != nil)
-        let savedContact = try await client.contacts.fetch(predicate: #Predicate { $0.id == id1 }).first
+        let savedContact = try await client.contacts.fetch(predicate: #Predicate { $0.stateId == id1 }).first
         #expect(savedContact?.id == id1)
         #expect(savedContact?.name == name1)
         #expect(savedContact?.sequenceNo == sequenceNo1)
@@ -254,6 +251,9 @@ struct ContactListTCAwithSwiftDataTests {
         await store.receive(\.didEdit, contact4) {
             $0.contacts = [contact4]
         }
-
+        await store.receive(\.editContact.dismiss) {
+            $0.editContact = nil
+        }
+        
     }
 }
