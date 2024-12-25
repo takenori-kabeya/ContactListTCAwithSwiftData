@@ -50,6 +50,34 @@ final class PersistentContact: PersistentMapping {
 
 
 
+extension ContactFeature.State: InMemoryChildContainer {
+    typealias InMemoryChildType = PhoneNumberFeature.State
+    
+    var inMemoryChildren: IdentifiedArrayOf<InMemoryChildType> {
+        return self.phoneNumbers
+    }
+}
+
+extension PersistentContact: PersistentChildContainer {
+    typealias PersistentChildType = PersistentPhoneNumber
+    
+    var persistentChildren: [PersistentPhoneNumber] {
+        return self.phoneNumbers
+    }
+    
+    func updateFrom(_ inMemoryObject: ContactFeature.State, withChildren children: [PersistentPhoneNumber]) {
+        self.stateId = inMemoryObject.id
+        self.name = inMemoryObject.name
+        self.sequenceNo = inMemoryObject.sequenceNo
+        self.phoneNumbers = children
+    }
+    
+    static func isMatch(_ persistentChild: PersistentPhoneNumber, _ inMemoryChild: PhoneNumberFeature.State) -> Bool {
+        return persistentChild.stateId == inMemoryChild.id
+    }
+}
+
+
 @Reducer
 struct ContactFeature {
     @ObservableState
