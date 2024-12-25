@@ -69,6 +69,7 @@ extension PersistentContact: PersistentChildContainer {
         self.stateId = inMemoryObject.id
         self.name = inMemoryObject.name
         self.sequenceNo = inMemoryObject.sequenceNo
+        self.nextSequenceNoOfPhoneNumbers = inMemoryObject.nextSequenceNoOfPhoneNumbers
         self.phoneNumbers = children
     }
     
