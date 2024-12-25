@@ -15,31 +15,31 @@ import PhoneNumberKit
 
 @Model
 final class PersistentPhoneNumber: Extractable {
-    @Attribute(.unique) var id: UUID
+    @Attribute(.unique) var stateId: UUID
     var phoneType: PhoneNumberFeature.PhoneType
     var number: String
     var sequenceNo: Int
     
-    init(id: UUID, phoneType: PhoneNumberFeature.PhoneType, number: String, sequenceNo: Int) {
-        self.id = id
+    init(stateId: UUID, phoneType: PhoneNumberFeature.PhoneType, number: String, sequenceNo: Int) {
+        self.stateId = stateId
         self.phoneType = phoneType
         self.number = number
         self.sequenceNo = sequenceNo
     }
     
     func extract() -> PhoneNumberFeature.State {
-        return PhoneNumberFeature.State(id: self.id, phoneType: self.phoneType, number: self.number, sequenceNo: self.sequenceNo)
+        return PhoneNumberFeature.State(id: self.stateId, phoneType: self.phoneType, number: self.number, sequenceNo: self.sequenceNo)
     }
     
     func updateFrom(_ extractedObject: PhoneNumberFeature.State) {
-        self.id = extractedObject.id
+        self.stateId = extractedObject.id
         self.phoneType = extractedObject.phoneType
         self.number = extractedObject.number
         self.sequenceNo = extractedObject.sequenceNo
     }
     
     static func createFrom(_ extractedObject: PhoneNumberFeature.State) -> PersistentPhoneNumber {
-        return PersistentPhoneNumber(id: extractedObject.id, phoneType: extractedObject.phoneType, number: extractedObject.number, sequenceNo: extractedObject.sequenceNo)
+        return PersistentPhoneNumber(stateId: extractedObject.id, phoneType: extractedObject.phoneType, number: extractedObject.number, sequenceNo: extractedObject.sequenceNo)
     }
 }
 
@@ -63,6 +63,8 @@ struct PhoneNumberFeature {
         var phoneType: PhoneType
         var number: String
         var sequenceNo: Int
+        
+        var persistentIdentifier: PersistentIdentifier? = nil
     }
     
     enum Action {

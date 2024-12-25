@@ -13,15 +13,15 @@ import SwiftData
 
 @Model
 final class PersistentContact: Extractable {
-    @Attribute(.unique) var id: UUID
+    @Attribute(.unique) var stateId: UUID
     var name: String
     var sequenceNo: Int
     
-    var phoneNumbers: [PersistentPhoneNumber]
+    @Relationship(deleteRule: .nullify, inverse: .none) var phoneNumbers: [PersistentPhoneNumber]
     var nextSequenceNoOfPhoneNumbers: Int
     
-    init(id: UUID, name: String, sequenceNo: Int, phoneNumbers: [PersistentPhoneNumber], nextSequenceNoOfPhoneNumbers: Int) {
-        self.id = id
+    init(stateId: UUID, name: String, sequenceNo: Int, phoneNumbers: [PersistentPhoneNumber], nextSequenceNoOfPhoneNumbers: Int) {
+        self.stateId = stateId
         self.name = name
         self.sequenceNo = sequenceNo
         self.phoneNumbers = phoneNumbers
@@ -29,23 +29,22 @@ final class PersistentContact: Extractable {
     }
     
     func extract() -> ContactFeature.State {
-        return ContactFeature.State(id: self.id, name: self.name, sequenceNo: self.sequenceNo,
+        return ContactFeature.State(id: self.stateId, name: self.name, sequenceNo: self.sequenceNo,
                                     phoneNumbers: IdentifiedArrayOf<PhoneNumberFeature.State>(uniqueElements: self.phoneNumbers.map { $0.extract() }),
                                     nextSequenceNoOfPhoneNumbers: self.nextSequenceNoOfPhoneNumbers)
     }
     
     func updateFrom(_ extractedObject: ContactFeature.State) {
-        self.id = extractedObject.id
+        self.stateId = extractedObject.id
         self.name = extractedObject.name
         self.sequenceNo = extractedObject.sequenceNo
         self.nextSequenceNoOfPhoneNumbers = extractedObject.nextSequenceNoOfPhoneNumbers
-        
-        self.phoneNumbers.removeAll()
-        self.phoneNumbers.append(contentsOf: extractedObject.phoneNumbers.map { PersistentPhoneNumber(id: $0.id, phoneType: $0.phoneType, number: $0.number, sequenceNo: $0.sequenceNo)})
+        self.phoneNumbers.append(contentsOf: extractedObject.phoneNumbers.map { PersistentPhoneNumber.createFrom($0) })
+        fatalError("This must not work. Use SwiftDataClient.contacts.updateWithChild() instead.")
     }
     
     static func createFrom(_ extractedObject: ContactFeature.State) -> PersistentContact {
-        return PersistentContact(id: extractedObject.id, name: extractedObject.name, sequenceNo: extractedObject.sequenceNo, phoneNumbers: extractedObject.phoneNumbers.map { PersistentPhoneNumber(id: $0.id, phoneType: $0.phoneType, number: $0.number, sequenceNo: $0.sequenceNo) }, nextSequenceNoOfPhoneNumbers: extractedObject.nextSequenceNoOfPhoneNumbers)
+        return PersistentContact(stateId: extractedObject.id, name: extractedObject.name, sequenceNo: extractedObject.sequenceNo, phoneNumbers: extractedObject.phoneNumbers.map { PersistentPhoneNumber(stateId: $0.id, phoneType: $0.phoneType, number: $0.number, sequenceNo: $0.sequenceNo) }, nextSequenceNoOfPhoneNumbers: extractedObject.nextSequenceNoOfPhoneNumbers)
     }
 }
 
@@ -97,10 +96,10 @@ struct ContactFeature {
             case .saveButtonTapped:
                 return .run { [contact = state] send in
                     await send(.delegate(.saveContact(contact)))
-                    await self.dismiss()
+                    //await self.dismiss()
                 }
                 
-            case let .setName(name):
+            case .setName(let name):
                 state.name = name
                 return .none
                 
