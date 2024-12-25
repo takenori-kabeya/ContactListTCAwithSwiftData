@@ -33,16 +33,6 @@ actor TableActor<ModelT> where ModelT : PersistentModel, ModelT : PersistentMapp
         return try context.fetchIdentifiers(descriptor)
     }
     
-//    @MainActor
-//    func fetchModel(_ identifer: PersistentIdentifier) -> ModelT? {
-//        return self.modelContainer.mainContext.model(for: identifer) as? ModelT
-//    }
-//    
-//    func fetchModelInBackground(_ identifer: PersistentIdentifier) -> ModelT? {
-//        let context = ModelContext(self.modelContainer)
-//        return context.model(for: identifer) as? ModelT
-//    }
-    
     @MainActor
     func fetchIdentifiers(predicate: Predicate<ModelT>, sortBy: [SortDescriptor<ModelT>] = []) throws -> [PersistentIdentifier] {
         let descriptor = FetchDescriptor<ModelT>(predicate: predicate, sortBy: sortBy)
@@ -124,7 +114,6 @@ actor TableActor<ModelT> where ModelT : PersistentModel, ModelT : PersistentMapp
         let modelObject = ModelT.createFrom(inMemoryObject)
         self.modelContainer.mainContext.insert(modelObject)
         if forceSave {
-            print("SAVE! insert")
             try self.modelContainer.mainContext.save()
         }
     }
@@ -231,40 +220,74 @@ actor TableActor<ModelT> where ModelT : PersistentModel, ModelT : PersistentMapp
     }
 }
 
+protocol InMemoryChildContainer<InMemoryChildType> where InMemoryChildType: Identifiable {
+    associatedtype InMemoryChildType
+    
+    var inMemoryChildren: IdentifiedArrayOf<InMemoryChildType> { get }
+}
 
+protocol PersistentChildContainer<PersistentChildType>: PersistentMapping where PersistentChildType: PersistentModel, PersistentChildType: PersistentMapping, InMemoryType: InMemoryChildContainer, PersistentChildType.InMemoryType == InMemoryType.InMemoryChildType {
+    associatedtype PersistentChildType
+    
+    var persistentChildren: [PersistentChildType] { get }
+    
+    func updateFrom(_ inMemoryObject: InMemoryType, withChildren children: [PersistentChildType])
+    
+    static func isMatch(_ persistentChild: PersistentChildType, _ inMemoryChild: PersistentChildType.InMemoryType) -> Bool
+}
 
+extension ContactFeature.State: InMemoryChildContainer {
+    typealias InMemoryChildType = PhoneNumberFeature.State
+    
+    var inMemoryChildren: IdentifiedArrayOf<InMemoryChildType> {
+        return self.phoneNumbers
+    }
+}
 
-extension TableActor where ModelT == PersistentContact {
+extension PersistentContact: PersistentChildContainer {
+    typealias PersistentChildType = PersistentPhoneNumber
+    
+    var persistentChildren: [PersistentPhoneNumber] {
+        return self.phoneNumbers
+    }
+    
+    func updateFrom(_ inMemoryObject: ContactFeature.State, withChildren children: [PersistentPhoneNumber]) {
+        self.stateId = inMemoryObject.id
+        self.name = inMemoryObject.name
+        self.sequenceNo = inMemoryObject.sequenceNo
+        self.phoneNumbers = children
+    }
+    
+    static func isMatch(_ persistentChild: PersistentPhoneNumber, _ inMemoryChild: PhoneNumberFeature.State) -> Bool {
+        return persistentChild.stateId == inMemoryChild.id
+    }
+}
+
+extension TableActor where ModelT: PersistentChildContainer {
     @MainActor
     func updateWithChild(id: PersistentIdentifier, _ inMemoryObject: ModelT.InMemoryType, forceSave: Bool = false) throws -> Void {
         guard let modelObject = self.modelContainer.mainContext.model(for: id) as? ModelT else {
             return
         }
-        var persistentPhoneNumbers: [PersistentPhoneNumber] = []
-        let existents = try self.modelContainer.mainContext.fetch(FetchDescriptor<PersistentPhoneNumber>())
+        var persistentChildren: [ModelT.PersistentChildType] = []
+        let existentPersistents = try self.modelContainer.mainContext.fetch(FetchDescriptor<ModelT.PersistentChildType>())
         
-        for phoneNumber in inMemoryObject.phoneNumbers {
-            if let persistentPhoneNumber = existents.first(where: { $0.stateId == phoneNumber.id }) {
-                persistentPhoneNumber.phoneType = phoneNumber.phoneType
-                persistentPhoneNumber.number = phoneNumber.number
-                persistentPhoneNumber.sequenceNo = phoneNumber.sequenceNo
-                
-                persistentPhoneNumbers.append(persistentPhoneNumber)
+        for inMemoryChild in inMemoryObject.inMemoryChildren {
+            if let persistentChild = existentPersistents.first(where: { ModelT.isMatch($0, inMemoryChild) }) {
+                persistentChild.updateFrom(inMemoryChild)
+                persistentChildren.append(persistentChild)
             }
             else {
-                let persistentPhoneNumber = PersistentPhoneNumber(stateId: phoneNumber.id, phoneType: phoneNumber.phoneType, number: phoneNumber.number, sequenceNo: phoneNumber.sequenceNo)
-                self.modelContainer.mainContext.insert(persistentPhoneNumber)
+                let persistentChild = ModelT.PersistentChildType.createFrom(inMemoryChild)
+                self.modelContainer.mainContext.insert(persistentChild)
                 
-                persistentPhoneNumbers.append(persistentPhoneNumber)
+                persistentChildren.append(persistentChild)
             }
         }
         try self.modelContainer.mainContext.save()
         
-        modelObject.stateId = inMemoryObject.id
-        modelObject.name = inMemoryObject.name
-        modelObject.sequenceNo = inMemoryObject.sequenceNo
-        modelObject.phoneNumbers = persistentPhoneNumbers
-        
+        modelObject.updateFrom(inMemoryObject, withChildren: persistentChildren)
+
         try self.modelContainer.mainContext.save()
     }
 }
