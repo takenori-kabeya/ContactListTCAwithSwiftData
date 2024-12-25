@@ -12,7 +12,7 @@ import SwiftData
 
 
 @Model
-final class PersistentContact: Extractable {
+final class PersistentContact: PersistentMapping {
     @Attribute(.unique) var stateId: UUID
     var name: String
     var sequenceNo: Int
@@ -34,17 +34,17 @@ final class PersistentContact: Extractable {
                                     nextSequenceNoOfPhoneNumbers: self.nextSequenceNoOfPhoneNumbers)
     }
     
-    func updateFrom(_ extractedObject: ContactFeature.State) {
-        self.stateId = extractedObject.id
-        self.name = extractedObject.name
-        self.sequenceNo = extractedObject.sequenceNo
-        self.nextSequenceNoOfPhoneNumbers = extractedObject.nextSequenceNoOfPhoneNumbers
-        self.phoneNumbers.append(contentsOf: extractedObject.phoneNumbers.map { PersistentPhoneNumber.createFrom($0) })
+    func updateFrom(_ inMemoryObject: ContactFeature.State) {
+        self.stateId = inMemoryObject.id
+        self.name = inMemoryObject.name
+        self.sequenceNo = inMemoryObject.sequenceNo
+        self.nextSequenceNoOfPhoneNumbers = inMemoryObject.nextSequenceNoOfPhoneNumbers
+        self.phoneNumbers.append(contentsOf: inMemoryObject.phoneNumbers.map { PersistentPhoneNumber.createFrom($0) })
         fatalError("This must not work. Use SwiftDataClient.contacts.updateWithChild() instead.")
     }
     
-    static func createFrom(_ extractedObject: ContactFeature.State) -> PersistentContact {
-        return PersistentContact(stateId: extractedObject.id, name: extractedObject.name, sequenceNo: extractedObject.sequenceNo, phoneNumbers: extractedObject.phoneNumbers.map { PersistentPhoneNumber(stateId: $0.id, phoneType: $0.phoneType, number: $0.number, sequenceNo: $0.sequenceNo) }, nextSequenceNoOfPhoneNumbers: extractedObject.nextSequenceNoOfPhoneNumbers)
+    static func createFrom(_ inMemoryObject: ContactFeature.State) -> PersistentContact {
+        return PersistentContact(stateId: inMemoryObject.id, name: inMemoryObject.name, sequenceNo: inMemoryObject.sequenceNo, phoneNumbers: inMemoryObject.phoneNumbers.map { PersistentPhoneNumber(stateId: $0.id, phoneType: $0.phoneType, number: $0.number, sequenceNo: $0.sequenceNo) }, nextSequenceNoOfPhoneNumbers: inMemoryObject.nextSequenceNoOfPhoneNumbers)
     }
 }
 

@@ -14,7 +14,7 @@ import PhoneNumberKit
 
 
 @Model
-final class PersistentPhoneNumber: Extractable {
+final class PersistentPhoneNumber: PersistentMapping {
     @Attribute(.unique) var stateId: UUID
     var phoneType: PhoneNumberFeature.PhoneType
     var number: String
@@ -31,15 +31,15 @@ final class PersistentPhoneNumber: Extractable {
         return PhoneNumberFeature.State(id: self.stateId, phoneType: self.phoneType, number: self.number, sequenceNo: self.sequenceNo)
     }
     
-    func updateFrom(_ extractedObject: PhoneNumberFeature.State) {
-        self.stateId = extractedObject.id
-        self.phoneType = extractedObject.phoneType
-        self.number = extractedObject.number
-        self.sequenceNo = extractedObject.sequenceNo
+    func updateFrom(_ inMemoryObject: PhoneNumberFeature.State) {
+        self.stateId = inMemoryObject.id
+        self.phoneType = inMemoryObject.phoneType
+        self.number = inMemoryObject.number
+        self.sequenceNo = inMemoryObject.sequenceNo
     }
     
-    static func createFrom(_ extractedObject: PhoneNumberFeature.State) -> PersistentPhoneNumber {
-        return PersistentPhoneNumber(stateId: extractedObject.id, phoneType: extractedObject.phoneType, number: extractedObject.number, sequenceNo: extractedObject.sequenceNo)
+    static func createFrom(_ inMemoryObject: PhoneNumberFeature.State) -> PersistentPhoneNumber {
+        return PersistentPhoneNumber(stateId: inMemoryObject.id, phoneType: inMemoryObject.phoneType, number: inMemoryObject.number, sequenceNo: inMemoryObject.sequenceNo)
     }
 }
 

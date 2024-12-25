@@ -10,19 +10,19 @@ import ComposableArchitecture
 import SwiftData
 
 
-protocol Extractable {
-    associatedtype ExtractedType
+protocol PersistentMapping {
+    associatedtype InMemoryType
     
-    func extract() -> ExtractedType
+    func extract() -> InMemoryType
     
-    func updateFrom(_ extractedObject: ExtractedType)
-    static func createFrom(_ extractedObject: ExtractedType) -> Self
+    func updateFrom(_ inMemoryObject: InMemoryType)
+    static func createFrom(_ inMemoryObject: InMemoryType) -> Self
 }
 
 
 
 @ModelActor
-actor TableActor<ModelT> where ModelT : PersistentModel, ModelT : Extractable {
+actor TableActor<ModelT> where ModelT : PersistentModel, ModelT : PersistentMapping {
     @MainActor
     func fetchIdentifiers(_ descriptor: FetchDescriptor<ModelT>) throws -> [PersistentIdentifier] {
         return try self.modelContainer.mainContext.fetchIdentifiers(descriptor)
@@ -76,24 +76,24 @@ actor TableActor<ModelT> where ModelT : PersistentModel, ModelT : Extractable {
     }
     
     @MainActor
-    func fetch(_ descriptor: FetchDescriptor<ModelT>) throws -> [ModelT.ExtractedType] {
+    func fetch(_ descriptor: FetchDescriptor<ModelT>) throws -> [ModelT.InMemoryType] {
         let models = try self.modelContainer.mainContext.fetch(descriptor)
         return models.map { $0.extract() }
     }
     
-    func fetchInBackground(_ descriptor: FetchDescriptor<ModelT>) throws -> [ModelT.ExtractedType] {
+    func fetchInBackground(_ descriptor: FetchDescriptor<ModelT>) throws -> [ModelT.InMemoryType] {
         let context = ModelContext(self.modelContainer)
         let models = try context.fetch(descriptor)
         return models.map { $0.extract() }
     }
     
     @MainActor
-    func fetch(predicate: Predicate<ModelT>? = nil, sortBy: [SortDescriptor<ModelT>] = []) throws -> [ModelT.ExtractedType] {
+    func fetch(predicate: Predicate<ModelT>? = nil, sortBy: [SortDescriptor<ModelT>] = []) throws -> [ModelT.InMemoryType] {
         let descriptor = FetchDescriptor<ModelT>(predicate: predicate, sortBy: sortBy)
         return try self.fetch(descriptor)
     }
     
-    func fetchInBackground(predicate: Predicate<ModelT>? = nil, sortBy: [SortDescriptor<ModelT>] = []) throws -> [ModelT.ExtractedType] {
+    func fetchInBackground(predicate: Predicate<ModelT>? = nil, sortBy: [SortDescriptor<ModelT>] = []) throws -> [ModelT.InMemoryType] {
         let descriptor = FetchDescriptor<ModelT>(predicate: predicate, sortBy: sortBy)
         return try self.fetchInBackground(descriptor)
     }
@@ -120,8 +120,8 @@ actor TableActor<ModelT> where ModelT : PersistentModel, ModelT : Extractable {
     }
     
     @MainActor
-    func insert(_ extractedObject: ModelT.ExtractedType, forceSave: Bool = false) throws -> Void {
-        let modelObject = ModelT.createFrom(extractedObject)
+    func insert(_ inMemoryObject: ModelT.InMemoryType, forceSave: Bool = false) throws -> Void {
+        let modelObject = ModelT.createFrom(inMemoryObject)
         self.modelContainer.mainContext.insert(modelObject)
         if forceSave {
             print("SAVE! insert")
@@ -129,8 +129,8 @@ actor TableActor<ModelT> where ModelT : PersistentModel, ModelT : Extractable {
         }
     }
     
-    func insertInBackground(_ extractedObject: ModelT.ExtractedType, forceSave: Bool = false) throws -> Void {
-        let modelObject = ModelT.createFrom(extractedObject)
+    func insertInBackground(_ inMemoryObject: ModelT.InMemoryType, forceSave: Bool = false) throws -> Void {
+        let modelObject = ModelT.createFrom(inMemoryObject)
         let context = ModelContext(self.modelContainer)
         context.insert(modelObject)
         if forceSave {
@@ -139,50 +139,50 @@ actor TableActor<ModelT> where ModelT : PersistentModel, ModelT : Extractable {
     }
     
     @MainActor
-    func update(id: PersistentIdentifier, _ extractedObject: ModelT.ExtractedType, forceSave: Bool = false) throws -> Void {
+    func update(id: PersistentIdentifier, _ inMemoryObject: ModelT.InMemoryType, forceSave: Bool = false) throws -> Void {
         guard let modelObject = self.modelContainer.mainContext.model(for: id) as? ModelT else {
             return
         }
-        modelObject.updateFrom(extractedObject)
+        modelObject.updateFrom(inMemoryObject)
         if forceSave {
             try self.modelContainer.mainContext.save()
         }
     }
     
-    func updateInBackground(id: PersistentIdentifier, _ extractedObject: ModelT.ExtractedType, forceSave: Bool = false) throws -> Void {
+    func updateInBackground(id: PersistentIdentifier, _ inMemoryObject: ModelT.InMemoryType, forceSave: Bool = false) throws -> Void {
         let context = ModelContext(self.modelContainer)
         guard let modelObject = context.model(for: id) as? ModelT else {
             return
         }
-        modelObject.updateFrom(extractedObject)
+        modelObject.updateFrom(inMemoryObject)
         if forceSave {
             try context.save()
         }
     }
     
     @MainActor
-    func upsert(_ descriptor: FetchDescriptor<ModelT>, _ extractedObject: ModelT.ExtractedType, forceSave: Bool = false) throws -> Void {
+    func upsert(_ descriptor: FetchDescriptor<ModelT>, _ inMemoryObject: ModelT.InMemoryType, forceSave: Bool = false) throws -> Void {
         if let modelObject = try self.modelContainer.mainContext.fetch(descriptor).first {
-            modelObject.updateFrom(extractedObject)
+            modelObject.updateFrom(inMemoryObject)
             if forceSave {
                 try self.modelContainer.mainContext.save()
             }
         }
         else {
-            try insert(extractedObject, forceSave: forceSave)
+            try insert(inMemoryObject, forceSave: forceSave)
         }
     }
     
-    func upsertInBackground(_ descriptor: FetchDescriptor<ModelT>, _ extractedObject: ModelT.ExtractedType, forceSave: Bool = false) throws -> Void {
+    func upsertInBackground(_ descriptor: FetchDescriptor<ModelT>, _ inMemoryObject: ModelT.InMemoryType, forceSave: Bool = false) throws -> Void {
         let context = ModelContext(self.modelContainer)
         if let modelObject = try context.fetch(descriptor).first {
-            modelObject.updateFrom(extractedObject)
+            modelObject.updateFrom(inMemoryObject)
             if forceSave {
                 try context.save()
             }
         }
         else {
-            let modelObject = ModelT.createFrom(extractedObject)
+            let modelObject = ModelT.createFrom(inMemoryObject)
             context.insert(modelObject)
             if forceSave {
                 try context.save()
@@ -192,14 +192,14 @@ actor TableActor<ModelT> where ModelT : PersistentModel, ModelT : Extractable {
     
     
     @MainActor
-    func upsert(predicate: Predicate<ModelT>, sortBy: [SortDescriptor<ModelT>] = [], _ extractedObject: ModelT.ExtractedType, forceSave: Bool = false) throws -> Void {
+    func upsert(predicate: Predicate<ModelT>, sortBy: [SortDescriptor<ModelT>] = [], _ inMemoryObject: ModelT.InMemoryType, forceSave: Bool = false) throws -> Void {
         let descriptor = FetchDescriptor<ModelT>(predicate: predicate, sortBy: sortBy)
-        try upsert(descriptor, extractedObject, forceSave: forceSave)
+        try upsert(descriptor, inMemoryObject, forceSave: forceSave)
     }
     
-    func upsertInBackground(predicate: Predicate<ModelT>, sortBy: [SortDescriptor<ModelT>] = [], _ extractedObject: ModelT.ExtractedType, forceSave: Bool = false) throws -> Void {
+    func upsertInBackground(predicate: Predicate<ModelT>, sortBy: [SortDescriptor<ModelT>] = [], _ inMemoryObject: ModelT.InMemoryType, forceSave: Bool = false) throws -> Void {
         let descriptor = FetchDescriptor<ModelT>(predicate: predicate, sortBy: sortBy)
-        try upsertInBackground(descriptor, extractedObject, forceSave: forceSave)
+        try upsertInBackground(descriptor, inMemoryObject, forceSave: forceSave)
     }
     
     @MainActor
@@ -236,14 +236,14 @@ actor TableActor<ModelT> where ModelT : PersistentModel, ModelT : Extractable {
 
 extension TableActor where ModelT == PersistentContact {
     @MainActor
-    func updateWithChild(id: PersistentIdentifier, _ extractedObject: ModelT.ExtractedType, forceSave: Bool = false) throws -> Void {
+    func updateWithChild(id: PersistentIdentifier, _ inMemoryObject: ModelT.InMemoryType, forceSave: Bool = false) throws -> Void {
         guard let modelObject = self.modelContainer.mainContext.model(for: id) as? ModelT else {
             return
         }
         var persistentPhoneNumbers: [PersistentPhoneNumber] = []
         let existents = try self.modelContainer.mainContext.fetch(FetchDescriptor<PersistentPhoneNumber>())
         
-        for phoneNumber in extractedObject.phoneNumbers {
+        for phoneNumber in inMemoryObject.phoneNumbers {
             if let persistentPhoneNumber = existents.first(where: { $0.stateId == phoneNumber.id }) {
                 persistentPhoneNumber.phoneType = phoneNumber.phoneType
                 persistentPhoneNumber.number = phoneNumber.number
@@ -260,9 +260,9 @@ extension TableActor where ModelT == PersistentContact {
         }
         try self.modelContainer.mainContext.save()
         
-        modelObject.stateId = extractedObject.id
-        modelObject.name = extractedObject.name
-        modelObject.sequenceNo = extractedObject.sequenceNo
+        modelObject.stateId = inMemoryObject.id
+        modelObject.name = inMemoryObject.name
+        modelObject.sequenceNo = inMemoryObject.sequenceNo
         modelObject.phoneNumbers = persistentPhoneNumbers
         
         try self.modelContainer.mainContext.save()
